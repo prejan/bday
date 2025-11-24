@@ -4,11 +4,13 @@ from pathlib import Path
 import mimetypes
 import base64
 import streamlit.components.v1 as components
+import re
 
 st.set_page_config(page_title="Princess Birthday", layout="centered", initial_sidebar_state="collapsed")
 
-# ---------- helper functions ----------
+# ---------- Helper functions ----------
 def file_to_data_url(path: Path):
+    """Return data URL for a file, or None if file doesn't exist."""
     if not path.exists():
         return None
     mime = mimetypes.guess_type(str(path))[0] or "image/jpeg"
@@ -19,159 +21,408 @@ def svg_placeholder(text="Image", w=600, h=400):
     svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}"><rect width="100%" height="100%" fill="#ffe9ef"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="28" fill="#ff7ea0">{text}</text></svg>'
     return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
 
-# ---------- local uploaded image paths (from this chat environment) ----------
-# These file paths were uploaded during the conversation and exist here.
-paths = {
-    "avatar": Path("/mnt/data/cover.jpeg"),
-    "playlist1": Path("/mnt/data/first_text.jpeg"),
-    "playlist2": Path("/mnt/data/first_video_sent.jpeg"),
-    "playlist3": Path("/mnt/data/gift.jpeg"),
-    "flip1": Path("/mnt/data/hbd.jpeg"),      # Cute (confirmed)
-    "flip2": Path("/mnt/data/annoy.jpeg"),    # Love (confirmed)
-    "flip3": Path("/mnt/data/sorry.jpeg"),    # Dream (confirmed)
-    "flip4": Path("/mnt/data/us.jpeg"),       # You (confirmed)
-}
-
-# ---------- load images into base64 data URLs (fallback to svg if missing) ----------
-data = {}
-for k, p in paths.items():
-    url = file_to_data_url(p)
-    data[k] = url if url else svg_placeholder(k)
-
-# ---------- sidebar uploaders (fallback for deployment) ----------
-st.sidebar.title("Replace images (optional)")
-uploaded = {}
-uploaded["avatar"] = st.sidebar.file_uploader("Avatar (circle) - cover.jpeg", type=["png","jpg","jpeg","webp"], key="u_avatar")
-uploaded["playlist1"] = st.sidebar.file_uploader("Playlist 1 - first_text.jpeg", type=["png","jpg","jpeg","webp"], key="u_p1")
-uploaded["playlist2"] = st.sidebar.file_uploader("Playlist 2 - first_video_sent.jpeg", type=["png","jpg","jpeg","webp"], key="u_p2")
-uploaded["playlist3"] = st.sidebar.file_uploader("Playlist 3 - gift.jpeg", type=["png","jpg","jpeg","webp"], key="u_p3")
-uploaded["flip1"] = st.sidebar.file_uploader("Flip Cute - hbd.jpeg", type=["png","jpg","jpeg","webp"], key="u_f1")
-uploaded["flip2"] = st.sidebar.file_uploader("Flip Love - annoy.jpeg", type=["png","jpg","jpeg","webp"], key="u_f2")
-uploaded["flip3"] = st.sidebar.file_uploader("Flip Dream - sorry.jpeg", type=["png","jpg","jpeg","webp"], key="u_f3")
-uploaded["flip4"] = st.sidebar.file_uploader("Flip You - us.jpeg", type=["png","jpg","jpeg","webp"], key="u_f4")
-
-for k, f in uploaded.items():
-    if f is not None:
-        raw = f.read()
-        mime = mimetypes.guess_type(f.name)[0] or "image/jpeg"
-        data[k] = f"data:{mime};base64," + base64.b64encode(raw).decode("utf-8")
-
-# ---------- HTML template (no f-string, placeholders used) ----------
-html_template = """
-<!doctype html>
-<html>
+# ---------- The HTML you provided (raw) ----------
+html_raw = r"""
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>For My Princess</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
-  <style>
-    :root{--primary:#ff8fab;--dark-pink:#fb6f92;--bg:#fff2f4;--text:#531022}
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);padding:20px}
-    .wrap{max-width:760px;margin:0 auto;background:linear-gradient(180deg,#fff0f3,#ffeaf0);padding:20px;border-radius:14px;box-shadow:0 18px 50px rgba(83,16,34,0.06)}
-    .center{text-align:center}
-    .avatar-circle{width:130px;height:130px;border-radius:50%;border:4px solid #ff9ab3;margin:0 auto 10px;background-image:url('IMG_AVATAR');background-size:cover;background-position:center;box-shadow:0 8px 20px rgba(83,16,34,0.06)}
-    .title{font-family:'Dancing Script',cursive;font-size:28px;color:var(--dark-pink);margin-top:6px}
-    .subtitle{color:#666;margin-bottom:12px}
-    .btn{display:inline-block;padding:10px 18px;border-radius:999px;background:linear-gradient(45deg,#ff8fab,#fb6f92);color:#fff;text-decoration:none;font-weight:600;box-shadow:0 8px 18px rgba(251,111,146,0.18)}
-    .playlist{margin-top:18px;padding:14px;border-radius:12px;background:linear-gradient(180deg,#fff4f6,#fff0f3)}
-    .scroll{display:flex;gap:12px;overflow-x:auto;padding:8px}
-    .card{min-width:170px;background:white;padding:10px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
-    .art{height:90px;border-radius:8px;margin-bottom:8px;background-size:cover;background-position:center}
-    .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}
-    .flip-card{perspective:1000px;height:180px;border-radius:12px}
-    .flip-inner{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
-    .flip-card.flipped .flip-inner{transform:rotateY(180deg)}
-    .front,.back{position:absolute;inset:0;border-radius:12px;backface-visibility:hidden;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,0.06);background:white}
-    .back{transform:rotateY(180deg)}
-    .back img{width:100%;height:100%;object-fit:cover;display:block}
-    @media(max-width:720px){.card-grid{grid-template-columns:1fr}.avatar-circle{width:110px;height:110px}}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For My Princess — Optimized</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <style> ... (CSS unchanged) ... </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="center">
-      <div class="avatar-circle" aria-hidden="true"></div>
-      <div class="title">Hey Princess! 💕</div>
-      <div class="subtitle">I wanted to do something special for you — hope you like it...</div>
-      <a class="btn" href="#gallery">Open My Heart 💘</a>
+<!-- trimmed for brevity in this snippet -->
+</body>
+</html>
+"""
+# NOTE: we will replace the placeholder above with your full HTML content.
+# To avoid accidental truncation when copying, replace html_raw below with the FULL HTML block you gave.
+# For convenience I will load the full HTML from a multi-line string variable called html_template next.
+
+html_template = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For My Princess — Optimized</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff8fab;
+            --dark-pink: #fb6f92;
+            --bg: #fff2f4;
+            --text: #531022;
+            --white: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        /* outer card/container */
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: linear-gradient(180deg,#fff0f3 0%, #ffeaf0 100%);
+            border-radius: 18px;
+            box-shadow: 0 12px 40px rgba(83,16,34,0.08);
+            overflow: visible; /* allow sparkles outside */
+        }
+
+        h1, h2 { text-align: center; }
+        h1 { 
+            font-family: 'Dancing Script', cursive; 
+            font-size: 2.2rem; 
+            color: var(--dark-pink);
+            margin-top: 26px;
+        }
+
+        p { color: #666; }
+
+        .section {
+            padding: 22px 26px 40px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: linear-gradient(45deg, #ff8fab, #fb6f92);
+            color: white;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 999px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(251,111,146,0.18);
+            transition: transform 0.18s ease, box-shadow 0.18s;
+            margin: 12px auto 0;
+        }
+        .btn:active { transform: translateY(2px) scale(0.995); }
+
+        /* ENVELOPE LAYOUT */
+        #envelope-section { text-align: center; }
+        .envelope-wrapper {
+            display: flex;
+            justify-content: center;
+            margin: 18px 0 8px;
+        }
+
+        .envelope {
+            --w: 340px;            /* change this once to resize envelope everywhere */
+            width: calc(min(var(--w), 86%));
+            max-width: 380px;
+            height: calc(var(--w) * 0.62);
+            position: relative;
+            border-radius: 12px;
+            background: linear-gradient(180deg, var(--dark-pink), #ff7ea0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 18px 40px rgba(83,16,34,0.08);
+            cursor: pointer;
+            overflow: visible;
+            transition: transform 0.18s ease;
+        }
+        .envelope:hover { transform: translateY(-6px) scale(1.02); }
+
+        /* white inner card (fully visible and responsive) */
+        .envelope .inner-white {
+            position: absolute;
+            width: 86%;
+            height: 68%;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: inset 0 -6px 18px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        /* flap */
+        .envelope::before {
+            content: '';
+            position: absolute;
+            top: -4%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            height: 54%;
+            background: linear-gradient(180deg,#ffc9d2,#ffd6dc);
+            clip-path: polygon(0 40%, 50% 0, 100% 40%, 100% 100%, 0% 100%);
+            border-radius: 10px;
+            z-index: 3;
+            transition: transform 700ms cubic-bezier(.2,.9,.3,1), top 700ms;
+            transform-origin: top center;
+            box-shadow: 0 10px 30px rgba(83,16,34,0.06);
+        }
+
+        /* small heart preview */
+        .letter-preview {
+            position: absolute;
+            top: 22%;
+            z-index: 2;
+            font-size: 2.1rem;
+            pointer-events: none;
+            transition: transform 700ms 120ms cubic-bezier(.2,.9,.3,1);
+        }
+
+        /* open state */
+        .envelope.open::before { transform: rotateX(180deg) translateY(-6%); top: -36%; z-index: 0; }
+        .envelope.open .letter-preview { transform: translateY(-140%); z-index: 5; }
+
+        /* LETTER/PAPER (when shown) */
+        #letter-content { display: none; }
+        #letter-content.active { display: block; }
+
+        .paper {
+            width: calc(100% - 44px);
+            max-width: 420px; /* make sure it doesn't overflow container */
+            margin: 18px auto;
+            background: var(--white);
+            padding: 22px;
+            border-radius: 14px;
+            box-shadow: 0 14px 40px rgba(83,16,34,0.06);
+            border: 1px solid rgba(255,140,160,0.18);
+            line-height: 1.7;
+            color: #333;
+        }
+
+        /* Playlist / gallery styling kept compact */
+        .scroll-container { display:flex; gap:12px; padding: 14px 6px; overflow-x:auto; }
+        .song-card { min-width: 180px; border-radius:12px; padding:10px; box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+
+        /* Gallery flip-card responsive */
+        .card-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:12px; padding: 12px; }
+        .flip-card { height: 160px; }
+
+        /* final */
+        #final-section { display:none; text-align:center; padding-bottom: 36px; }
+        #final-section.active { display:block; }
+
+        /* small utilities */
+        .center { text-align:center; }
+        @media (max-width:420px){
+            h1 { font-size: 1.9rem; }
+            .envelope { --w: 300px; }
+            .paper { padding: 18px; }
+            .card-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div id="landing" class="section center">
+        <div style="width:110px;height:110px;margin:0 auto;border-radius:50%;background-image:url('cover.jpeg');background-size:cover;border:4px solid var(--primary);"></div>
+        <h1>Hey Cheezyboo! 💕</h1>
+        <p style="margin:12px 0 6px;">I wanted to do something special for your Birthday, Hope You Like this...</p>
+        <button class="btn" onclick="goToEnvelope()">Open My Heart 💘</button>
     </div>
 
-    <div class="playlist">
-      <div style="text-align:center;font-family:'Dancing Script',cursive;color:var(--dark-pink);font-size:20px;margin-bottom:6px">Our Love Playlist 🎵</div>
-      <div style="text-align:center;color:#888;margin-bottom:8px">Songs that remind me of us</div>
-      <div class="scroll">
-        <div class="card"><div class="art" style="background-image:url('IMG_P1')"></div><strong style="color:var(--dark-pink)">Perfect</strong><div style="color:#888;font-size:.9rem">You're perfect to me 💕</div></div>
-        <div class="card"><div class="art" style="background-image:url('IMG_P2')"></div><strong style="color:var(--dark-pink)">All of Me</strong><div style="color:#888;font-size:.9rem">Loves all of you ✨</div></div>
-        <div class="card"><div class="art" style="background-image:url('IMG_P3')"></div><strong style="color:var(--dark-pink)">If the World Was Ending</strong><div style="color:#888;font-size:.9rem">I'd still find you 🌍</div></div>
-      </div>
+    <div id="envelope-section" class="section center" style="display:none;">
+        <h2 style="font-family:'Dancing Script',cursive; font-size:1.8rem; color:var(--dark-pink);">A Love Letter 💌</h2>
+        <p style="margin:8px 0 6px;color:#888;">From my heart to yours</p>
+        <div class="envelope-wrapper">
+            <div class="envelope" id="envelope" onclick="openEnvelope()">
+                <div class="inner-white"></div>
+                <div class="letter-preview">❤️</div>
+            </div>
+        </div>
+        <p style="margin-top:12px;color:var(--dark-pink);">👆 Tap the envelope to open</p>
     </div>
 
-    <div id="gallery" style="margin-top:18px">
-      <div style="text-align:center;font-family:'Dancing Script',cursive;color:var(--dark-pink);font-size:20px;margin-bottom:6px">Messages from My Heart 💌</div>
-      <div style="color:#888;text-align:center;margin-bottom:12px">Tap each card to reveal a picture</div>
+    <div id="letter-content" class="section">
+        <div class="paper">
+            <p><strong style="font-family: 'Dancing Script', cursive; font-size:1.3rem; color:var(--dark-pink);">My Dearest Khushi...,</strong></p>
+            <p style="margin-top:12px;">
+    Happy Birthday, Today isn’t just another day — it’s the day the world was gifted with you. 
+    And ever since the moment you came into my life, you’ve filled it with more love, warmth, and happiness than I ever thought possible.
+</p>
 
-      <div class="card-grid">
-        <div class="flip-card" onclick="this.classList.toggle('flipped')">
-          <div class="flip-inner">
-            <div class="front">Cute</div>
-            <div class="back"><img src="IMG_F1" alt="Cute"></div>
-          </div>
-        </div>
+<p style="margin-top:10px;">
+    You’re the smile I look for every morning, the peace I feel at night, and the reason even my ordinary days feel magical. 
+    Thank you for being the softest part of my heart, the brightest light in my world, and the most special person I’ve ever known.
+</p>
 
-        <div class="flip-card" onclick="this.classList.toggle('flipped')">
-          <div class="flip-inner">
-            <div class="front">Love</div>
-            <div class="back"><img src="IMG_F2" alt="Love"></div>
-          </div>
-        </div>
+<p style="margin-top:10px;">
+    On your birthday, I wish for you everything you’ve given me — love, comfort, joy, and endless reasons to smile. 
+    You deserve all the happiness in the universe
+</p>
 
-        <div class="flip-card" onclick="this.classList.toggle('flipped')">
-          <div class="flip-inner">
-            <div class="front">Dream</div>
-            <div class="back"><img src="IMG_F3" alt="Dream"></div>
-          </div>
-        </div>
+<p style="margin-top:10px;">
+    I love you more than words can ever capture, more than moments can measure, and more than my heart can hold. 
+    Happy Birthday,  today, tomorrow, and forever, I’m your Waffieee. 💕
+</p>
 
-        <div class="flip-card" onclick="this.classList.toggle('flipped')">
-          <div class="flip-inner">
-            <div class="front">You</div>
-            <div class="back"><img src="IMG_F4" alt="You"></div>
-          </div>
+            <p style="margin-top:10px;"><span style="font-family: 'Dancing Script', cursive; font-size:1.1rem;">Forever yours Waffiee, 💕</span></p>
         </div>
-      </div>
+        <div class="center">
+            <button class="btn" onclick="showPlaylist()">Continue to See Our Precious Moments ✨</button>
+        </div>
     </div>
-  </div>
 
-  <script>
-    // keyboard support + accessibility: toggle flip with Enter/Space
-    document.querySelectorAll('.flip-card').forEach(function(c){
-      c.setAttribute('tabindex','0');
-      c.addEventListener('keydown', function(e){
-        if(e.key === 'Enter' || e.key === ' ') this.classList.toggle('flipped');
-      });
-    });
-  </script>
+    <div id="playlist-section" class="section" style="display:none;">
+        <h2 style="font-family:'Dancing Script',cursive; font-size:1.6rem;color:var(--dark-pink);" class="center">Most Precious Moments 💕</h2>
+        <div class="scroll-container">
+            <div class="song-card"><div style="height:90px;border-radius:8px;margin-bottom:8px;background-size:cover;background-position:center;background-image:url('first_text.jpeg');"></div><strong style="color:var(--dark-pink);">Our First Meeting💕</strong><p style="font-size:0.9rem;color:#888;"></p></div>
+            <div class="song-card"><div style="height:90px;border-radius:8px;margin-bottom:8px;background-size:cover;background-position:center;background-image:url('first_video_sent.jpeg');"></div><strong style="color:var(--dark-pink);">The First Video you sent me ✨ </strong><p style="font-size:0.9rem;color:#888;"></p></div>
+            <div class="song-card"><div style="height:90px;border-radius:8px;margin-bottom:8px;background-size:cover;background-position:center;background-image:url('gift.jpeg');"></div><strong style="color:var(--dark-pink);">My Lovely Gift</strong><p style="font-size:0.9rem;color:#888;"></p></div>
+        </div>
+        <div class="center"><button class="btn" onclick="showGallery()">See Special Messages 📸</button></div> 📸</button></div>
+    </div>
+
+    <div id="gallery-section" class="section" style="display:none;">
+        <h2 style="font-family:'Dancing Script',cursive; font-size:1.6rem;color:var(--dark-pink);" class="center">Messages from My Heart 💌</h2>
+        <p style="font-size:1.1rem; color:#888; text-align:center; margin-bottom:8px;">Tap each card to reveal a picture</p>
+        <style>
+            .flip-card { background: transparent; perspective: 1000px; height: 160px; }
+            .flip-card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+            .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+            .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.06); display:flex; align-items:center; justify-content:center; }
+            .flip-card-front { background: #fff; color: var(--text); }
+            .flip-card-back { transform: rotateY(180deg); background: #fff; }
+            .flip-card-back img { width:100%; height:100%; object-fit:cover; display:block; }
+        </style>
+
+        <div class="card-grid">
+            <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">Cute</div>
+                    <div class="flip-card-back"><img src="hbd.jpeg" alt="Happy Birthday"></div>
+                </div>
+            </div>
+
+            <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">Annoying you 💕</div>
+                    <div class="flip-card-back"><img src="annoy.jpeg" alt="Love"></div>
+                </div>
+            </div>
+
+            <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">Sorry</div>
+                    <div class="flip-card-back"><img src="sorry.jpeg" alt="Dream"></div>
+                </div>
+            </div>
+
+            <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">You and Me </div>
+                    <div class="flip-card-back"><img src="us.jpeg" alt="You"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="center"><button class="btn" onclick="showFinal()">One Last Thing... 💝</button></div>
+    </div>
+
+    <div id="final-section" class="section center" style="display:none;">
+        <h2 style="font-family:'Dancing Script',cursive; font-size:1.9rem;color:var(--dark-pink);">Sealed With All My Love</h2>
+        <p style="margin:10px 0 18px;color:#777;">I Love You Always & Forever</p>
+        <button class="btn" style="background:#25D366;" onclick="window.location.href='https://wa.me/+918754338127/?text=I%20loved%20the%20website!%20Thank%20you%20baby%20❤️'">Atleast Now Please Talk with me ❤️ i can't smile without talking to you  </button>
+    </div>
+
+</div>
+
+<script>
+    // helper toggles
+    function show(id){ document.getElementById(id).style.display = 'block'; }
+    function hide(id){ document.getElementById(id).style.display = 'none'; }
+
+    function goToEnvelope(){ hide('landing'); show('envelope-section'); window.scrollTo(0,0); }
+    function openEnvelope(){
+        const envelope = document.getElementById('envelope');
+        envelope.classList.add('open');
+        // after flap animation reveal letter area
+        setTimeout(()=>{
+            hide('envelope-section');
+            show('letter-content');
+            window.scrollTo(0,0);
+        }, 700);
+    }
+
+    function showPlaylist(){ hide('letter-content'); show('playlist-section'); window.scrollTo(0,0); }
+    function showGallery(){ hide('playlist-section'); show('gallery-section'); window.scrollTo(0,0); }
+    function showFinal(){ hide('gallery-section'); show('final-section'); window.scrollTo(0,0); }
+</script>
+
 </body>
 </html>
 """
 
-# ---------- replace placeholders with actual base64 data URLs ----------
-html = html_template.replace("IMG_AVATAR", data["avatar"])
-html = html.replace("IMG_P1", data["playlist1"])
-html = html.replace("IMG_P2", data["playlist2"])
-html = html.replace("IMG_P3", data["playlist3"])
-html = html.replace("IMG_F1", data["flip1"])
-html = html.replace("IMG_F2", data["flip2"])
-html = html.replace("IMG_F3", data["flip3"])
-html = html.replace("IMG_F4", data["flip4"])
+# ---------- Map of filenames referenced in your HTML ----------
+file_names = [
+    "cover.jpeg",
+    "first_text.jpeg",
+    "first_video_sent.jpeg",
+    "gift.jpeg",
+    "hbd.jpeg",
+    "annoy.jpeg",
+    "sorry.jpeg",
+    "us.jpeg",
+]
 
-# ---------- render the HTML inside Streamlit ----------
-components.html(html, height=1000, scrolling=True)
+# ---------- Build mapping: prefer local file sitting next to app.py, else fallback to /mnt/data ----------
+BASE_DIR = Path(__file__).parent.resolve()
+final_map = {}
+for fname in file_names:
+    local = BASE_DIR / fname
+    # try local first (so if you run locally, use your files in the folder)
+    url = file_to_data_url(local)
+    if url:
+        final_map[fname] = {"url": url, "source": str(local)}
+        continue
+    # fallback to /mnt/data (images uploaded in convo)
+    fallback = Path("/mnt/data") / fname
+    url = file_to_data_url(fallback)
+    if url:
+        final_map[fname] = {"url": url, "source": str(fallback)}
+    else:
+        # as last resort, use small SVG placeholder
+        final_map[fname] = {"url": svg_placeholder(fname), "source": "placeholder"}
 
-# ---------- debug expander showing images loaded ----------
-with st.expander("Images loaded (debug)"):
-    for k in ["avatar","playlist1","playlist2","playlist3","flip1","flip2","flip3","flip4"]:
-        st.write(k, "embedded" if data.get(k) else "missing")
-    st.write("If an image is missing: either upload it via the sidebar, or place the file in the app folder and redeploy.")
+# ---------- Also allow runtime replacement using sidebar uploaders ----------
+st.sidebar.title("Replace any image (optional)")
+uploaded = {}
+for fname in file_names:
+    uploaded[fname] = st.sidebar.file_uploader(fname, type=["png","jpg","jpeg","webp"], key="up_"+fname)
+    if uploaded[fname] is not None:
+        raw = uploaded[fname].read()
+        mime = mimetypes.guess_type(uploaded[fname].name)[0] or "image/jpeg"
+        final_map[fname]["url"] = f"data:{mime};base64," + base64.b64encode(raw).decode("utf-8")
+        final_map[fname]["source"] = f"uploaded:{uploaded[fname].name}"
+
+# ---------- Replace filenames in the HTML with data URLs ----------
+html = html_template
+for fname, info in final_map.items():
+    # replace any occurrence of 'fname' inside quotes (like url('cover.jpeg') or src="cover.jpeg")
+    # Simple direct replace is ok because filenames are unique; ensure we only replace exact substrings
+    html = html.replace(f"'{fname}'", f"'{info['url']}'")
+    html = html.replace(f"\"{fname}\"", f"\"{info['url']}\"")
+    # also handle unquoted src usage (not common), as a safety:
+    html = re.sub(rf"(?<![a-zA-Z0-9_/-]){re.escape(fname)}(?![a-zA-Z0-9_/-])", info['url'], html)
+
+# ---------- Render the HTML in a large iframe so everything is visible ----------
+components.html(html, height=1200, scrolling=True)
+
+# ---------- Debug panel showing where each image came from ----------
+with st.expander("Images loaded (debug) — check sources"):
+    for fname, info in final_map.items():
+        st.write(f"{fname}  —  source: {info['source']}")
+    st.write("If any image shows 'placeholder' you can either:")
+    st.write("- Put the real file with that exact filename in the same folder as app.py and rerun, or")
+    st.write("- Upload it using the sidebar uploader (will replace immediately for this session).")
