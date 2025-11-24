@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For My Princess — Optimized</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff8fab;
+            --dark-pink: #fb6f92;
+            --bg: #fff2f4;
+            --text: #531022;
+            --white: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        /* outer card/container */
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: linear-gradient(180deg,#fff0f3 0%, #ffeaf0 100%);
+            border-radius: 18px;
+            box-shadow: 0 12px 40px rgba(83,16,34,0.08);
+            overflow: visible; /* allow sparkles outside */
+        }
+
+        h1, h2 { text-align: center; }
+        h1 { 
+            font-family: 'Dancing Script', cursive; 
+            font-size: 2.2rem; 
+            color: var(--dark-pink);
+            margin-top: 26px;
+        }
+
+        p { color: #666; }
+
+        .section {
+            padding: 22px 26px 40px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: linear-gradient(45deg, #ff8fab, #fb6f92);
+            color: white;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 999px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(251,111,146,0.18);
+            transition: transform 0.18s ease, box-shadow 0.18s;
+            margin: 12px auto 0;
+        }
+        .btn:active { transform: translateY(2px) scale(0.995); }
+
+        /* ENVELOPE LAYOUT */
+        #envelope-section { text-align: center; }
+        .envelope-wrapper {
+            display: flex;
+            justify-content: center;
+            margin: 18px 0 8px;
+        }
+
+        .envelope {
+            --w: 340px;            /* change this once to resize envelope everywhere */
+            width: calc(min(var(--w), 86%));
+            max-width: 380px;
+            height: calc(var(--w) * 0.62);
+            position: relative;
+            border-radius: 12px;
+            background: linear-gradient(180deg, var(--dark-pink), #ff7ea0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 18px 40px rgba(83,16,34,0.08);
+            cursor: pointer;
+            overflow: visible;
+            transition: transform 0.18s ease;
+        }
+        .envelope:hover { transform: translateY(-6px) scale(1.02); }
+
+        /* white inner card (fully visible and responsive) */
+        .envelope .inner-white {
+            position: absolute;
+            width: 86%;
+            height: 68%;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: inset 0 -6px 18px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        /* flap */
+        .envelope::before {
+            content: '';
+            position: absolute;
+            top: -4%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            height: 54%;
+            background: linear-gradient(180deg,#ffc9d2,#ffd6dc);
+            clip-path: polygon(0 40%, 50% 0, 100% 40%, 100% 100%, 0% 100%);
+            border-radius: 10px;
+            z-index: 3;
+            transition: transform 700ms cubic-bezier(.2,.9,.3,1), top 700ms;
+            transform-origin: top center;
+            box-shadow: 0 10px 30px rgba(83,16,34,0.06);
+        }
+
+        /* small heart preview */
+        .letter-preview {
+            position: absolute;
+            top: 22%;
+            z-index: 2;
+            font-size: 2.1rem;
+            pointer-events: none;
+            transition: transform 700ms 120ms cubic-bezier(.2,.9,.3,1);
+        }
+
+        /* open state */
+        .envelope.open::before { transform: rotateX(180deg) translateY(-6%); top: -36%; z-index: 0; }
+        .envelope.open .letter-preview { transform: translateY(-140%); z-index: 5; }
+
+        /* LETTER/PAPER (when shown) */
+        #letter-content { display: none; }
+        #letter-content.active { display: block; }
+
+        .paper {
+            width: calc(100% - 44px);
+            max-width: 420px; /* make sure it doesn't overflow container */
+            margin: 18px auto;
+            background: var(--white);
+            padding: 22px;
+            border-radius: 14px;
+            box-shadow: 0 14px 40px rgba(83,16,34,0.06);
+            border: 1px solid rgba(255,140,160,0.18);
+            line-height: 1.7;
+            color: #333;
+        }
+
+        /* Playlist / gallery styling kept compact */
+        .scroll-container { display:flex; gap:12px; padding: 14px 6px; overflow-x:auto; }
+        .song-card { min-width: 180px; border-radius:12px; padding:10px; box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+
+        /* Gallery flip-card responsive */
+        .card-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:12px; padding: 12px; }
+        .flip-card { height: 160px; }
+
+        /* final */
+        #final-section { display:none; text-align:center; padding-bottom: 36px; }
+        #final-section.active { display:block; }
+
+        /* small utilities */
+        .center { text-align:center; }
+        @media (max-width:420px){
+            h1 { font-size: 1.9rem; }
+            .envelope { --w: 300px; }
+            .paper { padding: 18px; }
+            .card-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div id="landing" class="section center">
+        <div style="width:110px;height:110px;margin:0 auto;border-radius:50%;background-image:url('cover.jpeg');background-size:cover;border:4px solid var(--primary);"></div>
+        <h1>Hey Cheezyboo! 💕</h1>
+        <p style="margin:12px 0 6px;">I wanted to do something special for your Birthday, Hope You Like this...</p>
+        <button class="btn" onclick="goToEnvelope()">Open My Heart 💘</button>
+    </div>
+
+    <div id="envelope-section" class="section center" style="display:none;">
+        <h2 style="font-family:'Dancing Script',cursive; font-size:1.8rem; color:var(--dark-pink);">A Love Letter 💌</h2>
+        <p style="margin:8px 0 6px;color:#888;">From my heart to yours</p>
+        <div class="envelope-wrapper">
+            <div class="envelope" id="envelope" onclick="openEnvelope()">
+                <div class="inner-white"></div>
+                <div class="letter-preview">❤️</div>
+            </div>
+        </div>
+        <p style="margin-top:12px;color:var(--dark-pink);">👆 Tap the envelope to open</p>
+    </div>
+
+    <div id="letter-content" class="section">
+        <div class="paper">
+            <p><strong style="font-family: 'Dancing Script', cursive; font-size:1.3rem; color:var(--dark-pink);">My Dearest Khushi...,</strong></p>
+            <p style="margin-top:12px;">
+    Happy Birthday, Today isn’t just another day — it’s the day the world was gifted with you. 
+    And ever since the moment you came into my life, you’ve filled it with more love, warmth, and happiness than I ever thought possible.
+</p>
+
+<p style="margin-top:10px;">
+    You’re the smile I look for every morning, the peace I feel at night, and the reason even my ordinary days feel magical. 
+    Thank you for being the softest part of my heart, the brightest light in my world, and the most special person I’ve ever known.
+</p>
+
+<p style="margin-top:10px;">
+    On your birthday, I wish for you everything you’ve given me — love, comfort, joy, and endless reasons to smile. 
+    You deserve all the happiness in the universe
+</p>
+
+<p style="margin-top:10px;">
+    I love you more than words can ever capture, more than moments can measure, and more than my heart can hold. 
+    Happy Birthday,  today, tomorrow, and forever, I’m your Waffieee. 💕
+</p>
+
+            <p style="margin-top:10px;"><span style="font-family: 'Dancing Script', cursive; font-size:1.1rem;">Forever yours Waffiee, 💕</span></p>
+        </div>
+        <div class="center">
+            <button class="btn" onclick="showPlaylist()">Continue to See Our Precious Moments ✨</button>
+        </div>
+    </div>
+
+    <div id="playlist-section" class="section" style="display:none;">
+        <h2 style="font-family:'Dancing Script',cursive; font-size:1.6rem;color:var(--dark-pink);" class="center">Most Precious Moments 💕</h2>
+        <div class="scroll-container">
+            <div class="song-card"><div style="height:90px;border-radius:8px;margin-bottom:8px;background-size:cover;background-position:center;background-image:url('first_text.jpeg');"></div><strong style="color:var(--dark-pink);">Our First Meeting💕</strong><p style="font-size:0.9rem;color:#888;"></p></div>
+            <div class="song-card"><div style="height:90px;border-radius:8px;margin-bottom:8px;background-size:cover;background-position:center;background-image:url('first_video_sent.jpeg');"></div><strong style="color:var(--dark-pink);">The First Video you sent me ✨ </strong><p style="font-size:0.9rem;color:#888;"></p></div>
+            <div class="song-card"><div style="height:90px;border-radius:8px;margin-bottom:8px;background-size:cover;background-position:center;background-image:url('gift.jpeg');"></div><strong style="color:var(--dark-pink);">My Lovely Gift</strong><p style="font-size:0.9rem;color:#888;"></p></div>
+        </div>
+        <div class="center"><button class="btn" onclick="showGallery()">See Special Messages 📸</button></div> 📸</button></div>
+    </div>
+
+    <div id="gallery-section" class="section" style="display:none;">
+        <h2 style="font-family:'Dancing Script',cursive; font-size:1.6rem;color:var(--dark-pink);" class="center">Messages from My Heart 💌</h2>
+        <p style="font-size:1.1rem; color:#888; text-align:center; margin-bottom:8px;">Tap each card to reveal a picture</p>
+        <style>
+            .flip-card { background: transparent; perspective: 1000px; height: 160px; }
+            .flip-card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+            .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+            .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.06); display:flex; align-items:center; justify-content:center; }
+            .flip-card-front { background: #fff; color: var(--text); }
+            .flip-card-back { transform: rotateY(180deg); background: #fff; }
+            .flip-card-back img { width:100%; height:100%; object-fit:cover; display:block; }
+        </style>
+
+        <div class="card-grid">
+            <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">Cute</div>
+                    <div class="flip-card-back"><img src="hbd.jpeg" alt="Happy Birthday"></div>
+                </div>
+            </div>
+
+            <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">Annoying you 💕</div>
+                    <div class="flip-card-back"><img src="annoy.jpeg" alt="Love"></div>
+                </div>
+            </div>
+
+            <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">Sorry</div>
+                    <div class="flip-card-back"><img src="sorry.jpeg" alt="Dream"></div>
+                </div>
+            </div>
+
+            <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front">You and Me </div>
+                    <div class="flip-card-back"><img src="us.jpeg" alt="You"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="center"><button class="btn" onclick="showFinal()">One Last Thing... 💝</button></div>
+    </div>
+
+    <div id="final-section" class="section center" style="display:none;">
+        <h2 style="font-family:'Dancing Script',cursive; font-size:1.9rem;color:var(--dark-pink);">Sealed With All My Love</h2>
+        <p style="margin:10px 0 18px;color:#777;">I Love You Always & Forever</p>
+        <button class="btn" style="background:#25D366;" onclick="window.location.href='https://wa.me/+918754338127/?text=I%20loved%20the%20website!%20Thank%20you%20baby%20❤️'">Atleast Now Please Talk with me ❤️ i can't smile without talking to you  </button>
+    </div>
+
+</div>
+
+<script>
+    // helper toggles
+    function show(id){ document.getElementById(id).style.display = 'block'; }
+    function hide(id){ document.getElementById(id).style.display = 'none'; }
+
+    function goToEnvelope(){ hide('landing'); show('envelope-section'); window.scrollTo(0,0); }
+    function openEnvelope(){
+        const envelope = document.getElementById('envelope');
+        envelope.classList.add('open');
+        // after flap animation reveal letter area
+        setTimeout(()=>{
+            hide('envelope-section');
+            show('letter-content');
+            window.scrollTo(0,0);
+        }, 700);
+    }
+
+    function showPlaylist(){ hide('letter-content'); show('playlist-section'); window.scrollTo(0,0); }
+    function showGallery(){ hide('playlist-section'); show('gallery-section'); window.scrollTo(0,0); }
+    function showFinal(){ hide('gallery-section'); show('final-section'); window.scrollTo(0,0); }
+</script>
+
+</body>
+</html>
